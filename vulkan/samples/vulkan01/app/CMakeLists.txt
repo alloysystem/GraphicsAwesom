@@ -10,15 +10,8 @@ cmake_minimum_required(VERSION 3.4.1)
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
 add_library(native-app-glue STATIC ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
-add_library( # Sets the name of the library.
-             native-lib
-
-             # Sets the library as a shared library.
-             SHARED
-
-             # Provides a relative path to your source file(s).
-             src/main/cpp/native-lib.cpp )
-
+file(GLOB EXAMPLE_SRC "src/main/cpp/*.cpp")
+add_library(native-lib SHARED ${EXAMPLE_SRC})
 
 #add compile flags
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
