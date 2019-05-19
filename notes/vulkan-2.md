@@ -26,3 +26,70 @@ Vulkan通过抽象现代CPU架构特点抽象设计接口解决了上述的问�
 
 #### 第一步 实例和物理设备选择
 
+Vulkan应用程序通过创建一个VkInstance开始设置Vulkan的API环境。通过创建一个VkInstance来描述应用程序并且选择Vulkan API的扩展支持。在创建了一个VkInstance之后，用户可以查询系统支持的硬件并且选择一个或者多个VkPhysicalDevices进行操作。用户可以查询类似VRAM大小设备的硬件功能等具体的属性。
+
+#### 第二步 逻辑设备和队列族
+
+通过第一个步骤选择了合适的物理设备后，用户需要创建VkDevice逻辑设备。这里，用户需要指定更多的需要使用到的VkPhysicalDeviceFeatures，譬如多视窗渲染（multi viewport rendering）和64 bit浮点数等。另外一个重要的事项是开发者需要指定具体使用哪一个队列族。大多数的Vulkan指令，譬如绘制和内存操作指令都是首先被提交到VkQueue然后被异步执行。队列（Queues）是从Queue falilies创建的，不同的Queue Family 支持不同类型的指令。譬如对于图形指令，计算指令和内存操作指令分别对应了不同的队列族（Queue family）。对不同的队列族（Queue family）的需求也是选择不同物理设备的一个重要因素。有可能存在一些支持Vulkan的物理设备不提供任何的图形功能。对于大部分的显卡设备，基本上都支持所有的队列类型。
+
+#### 第三步 窗口surface和交换链(Swap chain)
+
+除非用户只使用离屏渲染，否则必须创建一个窗口（window）来显示渲染的图形。用户可以使用诸如GLFW和SDL等系统库的API接口来创建窗口（Window）。在本教程中我们使用GLFW库来创建窗口，更多相关的信息在下一章中会详细阐述。
+
+要完成渲染到窗口的功能还需要两个重要的组件：
+
+- 窗口surface（VkSurfaceKHR）
+- 交换链（VkSwapChainKHR）
+
+这里需要了解的是KHR前缀表示对应的类为Vulkan扩展。纯Vulkan的API是完全平台无关的，这也是为什么我们需要标准的WSI（Window System Interface）扩展来和窗口管理系统进行交互。Surface是一个渲染系统窗口目标的一个跨平台的抽象概念。一般通过提供一个native window的引用进行初始化。
+
+交互链是渲染目标的集合。Swap Chain最基本的目的是为了保证目前正在渲染的图像不是屏幕上正在显示的图像，这种机制至关重要，保证了只有真正渲染完成的图像才能显示到屏幕上。当用户想绘制一个图片的时候必须先从**Swap Chain**中申请一个图片。当完成渲染绘制后，用户需要将这个图片返回到**Swap Chain**中，Vulkan系统会在之后的一个时间点将这个图片绘制到屏幕中。渲染目标数目和显示渲染完毕的图片到屏幕的条件和时机都取决于**显示模式（present mode）**的设置。普通的**显示模式（Present mode）**是双缓冲区和三缓冲区。我后续会在Swap Chain相关章节详细讲述相关的内容。
+
+#### 第四步 图像视图（image views）和帧缓冲（framebuffers）
+
+要在从Swap Chain中获取的image中绘制渲染，必须将image封装在 **VkImageView**和 **VkFramebuffer**中。
+
+- 图像视图（ImageView）是指一张图片Image的制定区域
+- 帧缓冲区（framebuffer）是指被用作颜色，深度和模板缓冲区目标的图像视图
+
+#### 第五步 Render passes
+
+Render passes 在Vulkan中描述的就是渲染过程中images的类型。也就是渲染过程中，作为渲染目标的image应该如何使用，image的内容被用作什么目的。举一个例子，在我们马上要讲解的简单的绘制三角形的例子中，我们只需要使用单个的image作为颜色缓冲区，我们希望在正式绘制之前必须将缓冲区颜色清理成单一颜色。**Render Pass**只描述Images的种类，VkFramebuffer实际上绑定了指定的images
+
+#### 第六步 图形管线
+
+Vulkan通过创建 **VkPipeline**来设置图形管线。图形管线（Graphics Pipeline）主要描述显卡中可配置的状态，譬如viewport size，depth buffer operation和着色器 VkShaderModule Objects的状态。 VkShaderModule是从着色器的字节码创建的。 同时需要制定渲染管线中使用的渲染目标。
+
+#### 第七步 指令池（Command Pools）和指令缓冲（Command Buffers）
+
+在Vulkan中要执行图形绘制指令，需要将图形绘制指令提交到一个执行队列上去。在提交这个指令之前，首先要将这个指令记录到 VkCommandBuffer。这些指令buffer是从 **VkCommandPool**中申请获得的，每一个VkCommandPool关联在不同的队列族中。为了绘制一个简单的三角形，我们需要记录如下的命令到缓冲区中
+
+- Begin the render pass
+- Bind the graphics pipeline
+- draw three vertices
+- End the render pass
+
+本小结需要了解的重点是：
+
+- 指令打包储存在指令缓冲中
+- 指令缓冲从指令池中申请
+
+#### 第八步 主循环Main loop
+
+绘制指令被包含在了Command buffer中，所有主循环的流程相对比较简单：
+
+- 首先从交换链中通过调用vkAcuirenextImageKHR获取图片（image）
+- 根据获取到的图片image选择合适的command buffer，并且将绘制指令填充到缓冲区中并提交执行
+- 最后，将图片返回到交换链中，通过调用vkQueuePresentKHR将图片显示到屏幕上
+
+提交到命令队列的指令都是异步执行的。因此我们需要同步锁来保证执行属性准确。
+
+- 执行绘制指令的时候一定要等待图片从Swap chain中获取成功，否则会出现图片正在被渲染了一半同时又被显示到了屏幕上。
+- 调用vkQueuePresentKHR函数是一定要等待渲染指令执行完毕
+
+
+
+ 
+
+
+
