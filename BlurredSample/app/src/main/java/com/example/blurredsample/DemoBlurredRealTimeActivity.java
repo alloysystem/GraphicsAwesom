@@ -56,6 +56,8 @@ public class DemoBlurredRealTimeActivity extends AppCompatActivity {
                     mAlpha = Math.abs(mScrollerY) / 10;
                 }
                 mBlurredView.setBlurredLevel(mAlpha);
+                mBlurredView.invalidate();
+                recyclerView.invalidate();
             }
         });
     }

@@ -3,6 +3,14 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        debug {
+            storePassword '123456'
+            storeFile file('G:\\workspace\\BlurredView-master\\debug.jks')
+            keyAlias 'key0'
+            keyPassword '123456'
+        }
+    }
     namespace 'com.example.blurredsample'
     compileSdk 32
 
